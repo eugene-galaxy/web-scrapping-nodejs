@@ -1,0 +1,22 @@
+{
+    "name": "scraper-development",
+    "description": "This is a private repository for proprietary web scrapers created by employees of bid lab, llc. use of this software outside of this organization is not authorized.",
+    "version": "0.1.0",
+    "private": true,
+    "license": "Message maurice@thebidlab.com",
+    "author": "Engineering team at The Bid Lab",
+    "engines": {
+        "node": ">=v16.19.0"
+    },
+    "scripts": {
+        "start": "node app.js"
+    },
+    "dependencies": {
+        "bluebird": "^3.7.2",
+        "puppeteer-extra": "^3.3.4",
+        "puppeteer-extra-plugin-recaptcha": "^3.6.6"
+    },
+    "devDependencies": {
+        "puppeteer": "^18.1.0"
+    }
+}

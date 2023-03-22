@@ -62,7 +62,7 @@ const scraperObject = {
           (text) =>
             text.textContent.replace(/(\s\d{2}:\d{2}:\d{2}\s*(PM|AM))/, "")
         );
-        dataObj["State"] = "VA";
+        // dataObj["State"] = "VA";
         dataObj["Agency"] = "Town of Leesburg";
         try {
           dataObj["Description"] = await newPage.$eval(

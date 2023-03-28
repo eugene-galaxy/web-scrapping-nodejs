@@ -5,8 +5,12 @@ function delay(time) {
     setTimeout(resolve, time);
   });
 }
-
-function isValidDate(date) {
+function isValidDate(dateString) {
+  const dateArray = dateString.split(" ");
+  const month = dateArray[1];
+  const day = dateArray[2].replace(",", "");
+  const year = dateArray[3];
+  const date = new Date(`${month} ${day}, ${year}`);
   let closedDate = Date.parse(date);
   if (isNaN(closedDate)) {
     return "12/31/2099";
@@ -15,42 +19,41 @@ function isValidDate(date) {
     return newClose.toLocaleDateString();
   }
 }
-
 const scraperObject = {
   // The URL of the site being scraped
-  url: "https://www.miamidade.gov/apps/ISD/stratproc/Home/CurrentSolicitations",
-  site_name: "MiamiDadeCoFL",
+  url: "https://www.seattlehousing.org/do-business-with-us/solicitations",
+  site_name: "SHAWA",
   async scraper(browser) {
     // Initialize page object and navigate to the url
     let page = await browser.newPage();
     console.log(`Navigating to ${this.url}...`);
     await page.goto(this.url);
     let scrapedData = [];
+    // await page.focus(`div.form-radios > ul > li:nth-child(3) > div > label`);
 
     // Starts the scrape and waits for the DOM to render. Use Puppeteer to scrape data.
     async function scrapeCurrentPage() {
-      await delay(1000);
-      await page.waitForSelector("table");
-      let urls = await page.$$eval("table > tbody > tr > td > a", (link) => {
-        link = link.map((element) => element.href);
-        return link;
-      });
-      let openDates = await page.$$eval(
-        "table > tbody > tr > td:nth-child(5)",
-        (element) => {
-          element = element.map((element) => element.textContent);
-          return element;
-        }
-      );
-      let closeDates = await page.$$eval(
-        "table > tbody > tr > td:nth-child(4)",
-        (element) => {
-          element = element.map((element) => element.textContent);
-          return element;
-        }
-      );
       // Wait for content to render.
-      // await page.waitForSelector("table");
+
+      // Select all bid titles that are available on this page.
+      await page.select(`select#edit-field-solicitation-status-value`, "Open");
+      await delay(1000);
+      while (
+        await page
+          .waitForSelector("ul.pager > li.pager__item > a", { timeout: 2000 })
+          .catch(() => null)
+      ) {
+        // Click on the button
+        await page.click("ul.pager > li.pager__item > a");
+      }
+      let urls = await page.$$eval(
+        "div.view-content > div > div > span > a",
+        (link) => {
+          link = link.map((element) => element.href);
+          return link;
+        }
+      );
+      // Access the URL on a new page instance and select relevant data.
       let pagePromise = async (link) => {
         // Initalize the new page instance and the data object to store information.
         let dataObj = {};
@@ -59,16 +62,28 @@ const scraperObject = {
 
         // Scrape revelant data fields.
         dataObj["Title"] = await newPage.$eval(
-          "div.container.bg-light > main > div:nth-child(5) > div:nth-child(2)",
+          "body > div.l-page > div.l-main > div > div > h1",
           (text) => text.textContent
         );
-        dataObj["Site Name"] = "MiamiDadeCoFL";
-        dataObj["State"] = "FL";
-        dataObj["Agency"] = "Miami-Dade County";
-        dataObj["Description"] = await newPage.$eval(
-          "div.container.bg-light > main > div:nth-child(7) > div:nth-child(2)",
+        dataObj["Site Name"] = "SHAWA";
+        dataObj["Open Date"] = await newPage.$eval(
+          "div.node__content > div:nth-child(3) > div > div > span",
+          (text) =>
+            text.textContent.replace(/(\s\d{2}:\d{2}:\d{2}\s*(PM|AM))/, "")
+        );
+        dataObj["Close Date"] = await newPage.$eval(
+          "div.node__content > div:nth-child(4) > div > div > span",
+          (text) =>
+            text.textContent.replace(/(\s\d{2}:\d{2}:\d{2}\s*(PM|AM))/, "")
+        );
+        dataObj["State"] = "WA";
+        dataObj["Agency"] = "Seattle Housing Authority (SHA)";
+        let description = await newPage.$eval(
+          "div.node__content > div:nth-child(7) > div.field__items > div",
           (text) => text.textContent.replace(/\s+/g, " ").trim()
         );
+        dataObj["Description"] = description;
+
         // Return data object.
         await newPage.close();
         return dataObj;
@@ -79,8 +94,8 @@ const scraperObject = {
           // Create a new page instance for the individual bid URL to scrape relevant data.
           let currentPageData = await pagePromise(urls[link]);
           // Create new Date() objects from the close and open dates to use for open_date, close_date, open_timestamp, and close_timestamp.
-          let newOpen = new Date(openDates[link]);
-          let newClose = new Date(closeDates[link]);
+          let newOpen = new Date(currentPageData["Open Date"]);
+          let newClose = new Date(isValidDate(currentPageData["Close Date"]));
           // Finally, add all scraped data to a final JSON object and push to the scrapedData array.
           scrapedData.push({
             site_name: currentPageData["Site Name"],
@@ -98,7 +113,7 @@ const scraperObject = {
           });
           // Write the current scrapedData array to the appropriate "AllData" file.
           fs.writeFile(
-            "0.Scraper2/MiamiDadeCoFLAllData.json",
+            "0.Scraper2/SHAWAAllData.json",
             JSON.stringify(scrapedData),
             "utf8",
             function (err) {
@@ -106,7 +121,7 @@ const scraperObject = {
                 return console.log(err);
               }
               console.log(
-                "The data has been scraped and saved successfully! View it at '0.Scraper2/MiamiDadeCoFLAllData.json'"
+                "The data has been scraped and saved successfully! View it at '0.Scraper2/SHAWAAllData.json'"
               );
             }
           );
@@ -114,6 +129,7 @@ const scraperObject = {
           console.log(e);
         }
       }
+      // We are done scraping this page, return scrapedData.
       await page.close();
       return scrapedData;
     }

@@ -37,29 +37,19 @@ const scraperObject = {
 
     // Starts the scrape and waits for the DOM to render. Use Puppeteer to scrape data.
     async function scrapeCurrentPage() {
-      // Wait for content to render.
-      let rowCount = await page.$eval(
-        "div#content > table > tbody",
-        (element) => element.childElementCount
-      );
-      let titles = [];
       let descriptions = [];
       let openDates = [];
       let closeDates = [];
-      for (let i = 1; i <= rowCount - 1; i += 2) {
-        titles.push(
-          await page.$eval(
-            `div#content > table > tbody > tr:nth-child(${i}) > td`,
-            (element) => element.textContent.replace(/\s+/g, " ").trim()
-          )
-        );
-        descriptions.push(
-          await page.$eval(
-            `div#content > table > tbody > tr:nth-child(${i + 1}) > td`,
-            (element) => element.textContent.replace(/\s+/g, " ").trim()
-          )
-        );
-      }
+      let titles = await page.$$eval("div.page-doc", (divs) => {
+        divs = divs.map((element) => {
+          if (element.textContent.includes("*******")) {
+            return element.nextElementSibling.textContent;
+          }
+        });
+        return divs;
+      });
+      titles = titles.filter((element) => element !== null);
+      titles.pop();
       for (title in titles) {
         try {
           // Create new Date() objects from the close and open dates to use for open_date, close_date, open_timestamp, and close_timestamp.
@@ -78,7 +68,8 @@ const scraperObject = {
             close_timestamp: Math.floor(newClose.getTime() / 1000),
             state: "WI",
             agency: "Brown County",
-            description: descriptions[title],
+            description:
+              "Click the “Link to bid” below button for more information",
           });
           // Write the current scrapedData array to the appropriate "AllData" file.
           fs.writeFile(

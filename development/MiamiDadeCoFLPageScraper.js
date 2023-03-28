@@ -50,7 +50,6 @@ const scraperObject = {
         }
       );
       // Wait for content to render.
-      // await page.waitForSelector("table");
       let pagePromise = async (link) => {
         // Initalize the new page instance and the data object to store information.
         let dataObj = {};
